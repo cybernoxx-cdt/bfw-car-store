@@ -15,34 +15,70 @@ interface AuthState {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
+  authError: string | null;
 }
 
-const AuthContext = createContext<AuthState>({ user: null, isAdmin: false, loading: true });
+const AuthContext = createContext<AuthState>({
+  user: null,
+  isAdmin: false,
+  loading: true,
+  authError: null,
+});
+
+const configuredAdminEmail =
+  process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase() || "";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({ user: null, isAdmin: false, loading: true });
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    isAdmin: false,
+    loading: true,
+    authError: null,
+  });
 
   useEffect(() => {
+    let alive = true;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!alive) return;
+
       if (!user) {
-        setState({ user: null, isAdmin: false, loading: false });
+        setState({
+          user: null,
+          isAdmin: false,
+          loading: false,
+          authError: null,
+        });
         return;
       }
 
-      // The frontend check below is only a UX convenience so the admin UI
-      // doesn't flash for signed-in-but-not-admin accounts. The real
-      // boundary is enforced server-side by Firestore security rules,
-      // which independently re-check users/{uid}.role on every read/write.
+      const emailMatches =
+        !!user.email &&
+        !!configuredAdminEmail &&
+        user.email.trim().toLowerCase() === configuredAdminEmail;
+
+      let roleMatches = false;
       try {
         const snap = await getDoc(doc(db, "users", user.uid));
-        const isAdmin = snap.exists() && snap.data().role === "admin";
-        setState({ user, isAdmin, loading: false });
+        roleMatches = snap.exists() && snap.data()?.role === "admin";
       } catch {
-        setState({ user, isAdmin: false, loading: false });
+        // Ignore Firestore issues; configured admin email remains valid.
       }
+
+      if (!alive) return;
+
+      setState({
+        user,
+        isAdmin: emailMatches || roleMatches,
+        loading: false,
+        authError: null,
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
   }, []);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
