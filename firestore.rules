@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // The real security boundary described in the brief: every write to a
+    // protected collection re-checks this on the server, independent of
+    // whatever the admin UI does or doesn't show.
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['carId', 'carName', 'selectedModifications', 'totalPrice', 'currency', 'status'])
+        && data.status == 'NEW'
+        && data.carId is string && data.carId.size() > 0
+        && data.carName is string
+        && data.totalPrice is number && data.totalPrice >= 0
+        && data.selectedModifications is list;
+    }
+
+    // Each signed-in user may read their OWN role doc (the client auth
+    // guard needs this to know whether to show the admin UI). Only an
+    // admin may create/update/change roles — bootstrap the very first
+    // admin out-of-band with scripts/seed-admin.ts, which uses the Admin
+    // SDK and therefore bypasses these rules entirely.
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isAdmin();
+    }
+
+    match /cars/{carId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /modifications/{modId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /about/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Bookkeeping for the admin Media Library only — never exposed
+    // publicly. The binaries themselves live on Cloudinary regardless.
+    match /media/{mediaId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Anyone (including signed-out shoppers) can submit a build as a
+    // lead, but only a well-formed, brand-new ("NEW") lead — they can
+    // never read, edit, or delete leads, including their own.
+    match /leads/{leadId} {
+      allow create: if isValidLead(request.resource.data);
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

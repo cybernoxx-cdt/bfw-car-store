@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: auto; /* Lenis owns smooth scrolling; avoid double-smoothing */
+}
+
+body {
+  background-color: #0a0a0c;
+  color: #f2f0ec;
+  font-feature-settings: "ss01" on;
+}
+
+::selection {
+  background-color: #ff6a1a;
+  color: #0a0a0c;
+}
+
+/* Hero Swiper needs an explicit height — Swiper doesn't infer it from
+   child content by default. */
+.hero-swiper,
+.hero-swiper .swiper-wrapper,
+.hero-swiper .swiper-slide {
+  height: 100svh;
+}
+
+.main-gallery .swiper-button-next,
+.main-gallery .swiper-button-prev {
+  color: #f2f0ec;
+  transform: scale(0.6);
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  width: 44px;
+  height: 44px;
+}
+
+.main-gallery .swiper-button-next::after,
+.main-gallery .swiper-button-prev::after {
+  font-size: 16px;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes heroProgress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect reduced-motion system-wide as a final safety net, on top of the
+   per-animation checks already done in lib/animations.ts. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+input[type="range"].accent-ignition {
+  accent-color: #ff6a1a;
+}

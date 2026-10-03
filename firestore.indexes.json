@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "modifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "carId", "order": "ASCENDING" },
+        { "fieldPath": "available", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "modifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "compatibility", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "available", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
