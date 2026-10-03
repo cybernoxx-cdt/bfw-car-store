@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { Loader2, Lock, Mail } from "lucide-react";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminLoginPage() {
@@ -26,14 +27,35 @@ export default function AdminLoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.replace("/admin/dashboard");
-    } catch {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Verify admin role before redirecting
+      const snap = await getDoc(doc(db, "users", result.user.uid));
+      const isUserAdmin = snap.exists() && snap.data().role === "admin";
+      
+      if (isUserAdmin) {
+        router.replace("/admin/dashboard");
+      } else {
+        setError("You do not have admin privileges.");
+        // Sign out the user since they're not an admin
+        await auth.signOut();
+      }
+    } catch (err) {
       setError("Invalid email or password. Please try again.");
+      console.error("Login error:", err);
     } finally {
       setSubmitting(false);
     }
   };
+
+  // Don't show login form if already authenticated and admin
+  if (!loading && user && isAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ink-900">
+        <Loader2 className="animate-spin text-ignition" size={28} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink-900 px-6">
@@ -85,7 +107,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-ignition py-3 text-xs font-semibold uppercase tracking-widest2 text-ink-900 transition-colors hover:bg-ignition-soft disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-ignition py-3 text-xs font-semibold uppercase tracking-widest2 text-ink-900 transition-colors hover:bg-ignition-s disabled:opacity-50"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
             {submitting ? "Signing In…" : "Sign In"}
